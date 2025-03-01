@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login / Registro - Sistema de Tickets</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/5968/5968764.png">
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+<div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+    <h2 class="text-2xl font-bold text-center text-indigo-600 mb-6">Sistema de Tickets</h2>
+
+    <div class="flex justify-center mb-4">
+        <button id="btnLoginTab" class="flex-1 py-2 text-center border-b-2 border-indigo-500 text-indigo-600 font-semibold">Iniciar Sesión</button>
+        <button id="btnRegisterTab" class="flex-1 py-2 text-center border-b-2 text-gray-500">Registrarse</button>
+    </div>
+
+    <!-- Formulario Login -->
+    <form id="loginForm" class="space-y-4">
+        <input type="email" id="loginEmail" placeholder="Correo electrónico" class="w-full p-3 border rounded-lg">
+        <input type="password" id="loginPassword" placeholder="Contraseña" class="w-full p-3 border rounded-lg">
+        <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700">Entrar</button>
+    </form>
+
+    <!-- Formulario Registro (oculto por defecto) -->
+    <form id="registerForm" class="space-y-4 hidden">
+        <input type="email" id="registerEmail" placeholder="Correo electrónico" class="w-full p-3 border rounded-lg">
+        <input type="password" id="registerPassword" placeholder="Contraseña" class="w-full p-3 border rounded-lg">
+        <input type="password" id="registerConfirmPassword" placeholder="Confirmar contraseña" class="w-full p-3 border rounded-lg">
+        <button type="submit" class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700">Registrarse</button>
+    </form>
+
+    <p id="errorMessage" class="text-red-600 text-center mt-4 hidden"></p>
+</div>
+
+<!-- Firebase Config -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
+    import { getFirestore, setDoc, doc } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDiZ7or4sM1_gZKWPOglyRerSYXy7ufS0k",
+        authDomain: "tickets-pro-d8f2a.firebaseapp.com",
+        projectId: "tickets-pro-d8f2a",
+        storageBucket: "tickets-pro-d8f2a.firebasestorage.app",
+        messagingSenderId: "834950529329",
+        appId: "1:834950529329:web:f9ce16e71830ac73a07010"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const errorMessage = document.getElementById('errorMessage');
+
+    document.getElementById('btnLoginTab').addEventListener('click', () => switchTab('login'));
+    document.getElementById('btnRegisterTab').addEventListener('click', () => switchTab('register'));
+
+    function switchTab(tab) {
+        if (tab === 'login') {
+            loginForm.classList.remove('hidden');
+            registerForm.classList.add('hidden');
+            document.getElementById('btnLoginTab').classList.add('text-indigo-600', 'border-indigo-500');
+            document.getElementById('btnRegisterTab').classList.remove('text-indigo-600', 'border-indigo-500');
+        } else {
+            loginForm.classList.add('hidden');
+            registerForm.classList.remove('hidden');
+            document.getElementById('btnRegisterTab').classList.add('text-indigo-600', 'border-indigo-500');
+            document.getElementById('btnLoginTab').classList.remove('text-indigo-600', 'border-indigo-500');
+        }
+    }
+
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = loginForm['loginEmail'].value;
+        const password = loginForm['loginPassword'].value;
+
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            window.location.href = 'dashboard.html';
+        } catch (error) {
+            showError(error.message);
+        }
+    });
+
+    registerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = registerForm['registerEmail'].value;
+        const password = registerForm['registerPassword'].value;
+        const confirmPassword = registerForm['registerConfirmPassword'].value;
+
+        if (password !== confirmPassword) {
+            showError('Las contraseñas no coinciden');
+            return;
+        }
+
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            await setDoc(doc(db, "usuarios", userCredential.user.uid), {
+                email: email,
+                rol: "usuario"
+            });
+            window.location.href = 'dashboard.html';
+        } catch (error) {
+            showError(error.message);
+        }
+    });
+
+    function showError(msg) {
+        errorMessage.innerText = msg;
+        errorMessage.classList.remove('hidden');
+        setTimeout(() => errorMessage.classList.add('hidden'), 5000);
+    }
+</script>
+
+</body>
+</html>

@@ -5,11 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel de Administración - Tickets</title>
     <script type="module">
-        // Importamos las funciones necesarias de Firebase
+        // Importar las funciones necesarias de Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
         import { getFirestore, collection, query, where, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
         import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
-        import { app } from './firebase-config.js'; // Asegúrate de importar la configuración de Firebase
 
+        // Configuración de Firebase (reemplaza con tu configuración propia)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDiZ7or4sM1_gZKWPOglyRerSYXy7ufS0k",
+            authDomain: "tickets-pro-d8f2a.firebaseapp.com",
+            projectId: "tickets-pro-d8f2a",
+            storageBucket: "tickets-pro-d8f2a.firebasestorage.app",
+            messagingSenderId: "834950529329",
+            appId: "1:834950529329:web:f9ce16e71830ac73a07010"
+        };
+
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
 

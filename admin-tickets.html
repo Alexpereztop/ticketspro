@@ -2,213 +2,140 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Administrar Tickets - Sistema de Tickets</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
-    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/5968/5968764.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - Tickets</title>
+    <script type="module">
+        // Importamos las funciones necesarias de Firebase
+        import { getFirestore, collection, query, where, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+        import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
+        import { app } from './firebase-config.js'; // Asegúrate de importar la configuración de Firebase
+
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Función para cargar los tickets con los filtros seleccionados
+        async function cargarTickets() {
+            const estadoFiltro = document.getElementById('estadoFiltro').value;
+            const categoriaFiltro = document.getElementById('categoriaFiltro').value;
+
+            let q = collection(db, 'tickets'); // Consulta inicial sin filtros
+
+            if (estadoFiltro) {
+                q = query(q, where('estado', '==', estadoFiltro));
+            }
+            if (categoriaFiltro) {
+                q = query(q, where('categoria', '==', categoriaFiltro));
+            }
+
+            const querySnapshot = await getDocs(q);
+            const ticketsContainer = document.getElementById('ticketsContainer');
+
+            if (querySnapshot.empty) {
+                ticketsContainer.innerHTML = '<p class="text-gray-500">No se encontraron tickets.</p>';
+                return;
+            }
+
+            ticketsContainer.innerHTML = '';
+            querySnapshot.forEach(doc => {
+                const ticket = doc.data();
+                ticketsContainer.appendChild(crearTarjetaTicket(ticket, doc.id));
+            });
+        }
+
+        // Función para crear la tarjeta de cada ticket
+        function crearTarjetaTicket(ticket, ticketId) {
+            const tarjeta = document.createElement('div');
+            tarjeta.classList.add('ticket-card', 'border', 'p-4', 'mb-4', 'shadow-lg');
+            
+            tarjeta.innerHTML = `
+                <h3 class="text-xl font-semibold">${ticket.titulo}</h3>
+                <p><strong>Cliente:</strong> ${ticket.nombreCliente}</p>
+                <p><strong>Descripción:</strong> ${ticket.descripcion}</p>
+                <p><strong>Prioridad:</strong> ${ticket.prioridad}</p>
+                <p><strong>Estado:</strong> <select id="estado-${ticketId}" class="bg-gray-200 p-2 rounded">
+                    <option value="abierto" ${ticket.estado === 'abierto' ? 'selected' : ''}>Abierto</option>
+                    <option value="en_proceso" ${ticket.estado === 'en_proceso' ? 'selected' : ''}>En Proceso</option>
+                    <option value="cerrado" ${ticket.estado === 'cerrado' ? 'selected' : ''}>Cerrado</option>
+                </select></p>
+                <p><strong>Agente asignado:</strong> <input type="text" id="agente-${ticketId}" value="${ticket.agenteAsignado || ''}" class="bg-gray-200 p-2 rounded"></p>
+                <p><strong>Fecha de registro:</strong> ${formatearFecha(ticket.fechaRegistro)}</p>
+                <button class="bg-blue-500 text-white p-2 mt-4 rounded" onclick="guardarCambios('${ticketId}')">Guardar cambios</button>
+            `;
+
+            return tarjeta;
+        }
+
+        // Función para formatear la fecha de los tickets
+        function formatearFecha(timestampSeconds) {
+            if (!timestampSeconds) return 'Fecha no disponible';
+            const fecha = new Date(timestampSeconds * 1000);
+            return fecha.toLocaleDateString() + ' ' + fecha.toLocaleTimeString();
+        }
+
+        // Función para guardar los cambios de estado y agente en el ticket
+        async function guardarCambios(ticketId) {
+            const agente = document.getElementById(`agente-${ticketId}`).value;
+            const estado = document.getElementById(`estado-${ticketId}`).value;
+
+            const ticketRef = doc(db, "tickets", ticketId);
+            await updateDoc(ticketRef, {
+                agenteAsignado: agente,
+                estado: estado
+            });
+
+            cargarTickets(); // Recargar los tickets con los cambios
+        }
+
+        // Función para cerrar sesión
+        async function cerrarSesion() {
+            await signOut(auth);
+            window.location.href = 'index.html';
+        }
+
+        // Filtros para cargar los tickets al cambiar los valores de estado o categoría
+        document.getElementById('estadoFiltro').addEventListener('change', cargarTickets);
+        document.getElementById('categoriaFiltro').addEventListener('change', cargarTickets);
+
+        // Cargar tickets cuando se cargue la página
+        window.onload = cargarTickets;
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script> <!-- Usamos Tailwind CSS para los estilos -->
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-gray-100">
 
-<header class="bg-indigo-600 text-white p-4">
-    <div class="container mx-auto flex justify-between items-center">
-        <h1 class="text-xl font-bold">Sistema de Tickets</h1>
+    <!-- Encabezado -->
+    <header class="bg-blue-500 text-white p-4">
         <nav>
-            <ul id="menu" class="flex space-x-4"></ul>
+            <ul class="flex space-x-6">
+                <li><a href="index.html" class="text-white">Inicio</a></li>
+                <li><a href="admin-tickets.html" class="text-white">Administrar Tickets</a></li>
+                <li><button onclick="cerrarSesion()" class="text-white">Cerrar Sesión</button></li>
+            </ul>
         </nav>
+    </header>
+
+    <!-- Filtros -->
+    <div class="container mx-auto my-6">
+        <div class="flex space-x-4 mb-4">
+            <select id="estadoFiltro" class="p-2 rounded border">
+                <option value="">Filtrar por estado</option>
+                <option value="abierto">Abierto</option>
+                <option value="en_proceso">En Proceso</option>
+                <option value="cerrado">Cerrado</option>
+            </select>
+            <select id="categoriaFiltro" class="p-2 rounded border">
+                <option value="">Filtrar por categoría</option>
+                <option value="soporte">Soporte</option>
+                <option value="ventas">Ventas</option>
+                <option value="tecnico">Técnico</option>
+                <option value="administrativo">Administrativo</option>
+                <option value="otro">Otro</option>
+            </select>
+        </div>
+
+        <!-- Contenedor de los tickets -->
+        <div id="ticketsContainer" class="space-y-4"></div>
     </div>
-</header>
-
-<main class="p-6">
-    <h2 class="text-2xl font-bold mb-6">Administrar Tickets</h2>
-    
-    <!-- Filtros de estado y categoría -->
-    <div class="mb-6">
-        <select id="estadoFiltro" class="p-2 border rounded mr-4">
-            <option value="">Filtrar por Estado</option>
-            <option value="Pendiente">Pendiente</option>
-            <option value="En proceso">En proceso</option>
-            <option value="Resuelto">Resuelto</option>
-            <option value="Cerrado">Cerrado</option>
-        </select>
-
-        <select id="categoriaFiltro" class="p-2 border rounded">
-            <option value="">Filtrar por Categoría</option>
-            <option value="Soporte Técnico">Soporte Técnico</option>
-            <option value="Problemas de Facturación">Problemas de Facturación</option>
-            <option value="Consultas Comerciales">Consultas Comerciales</option>
-            <option value="Errores de Aplicación">Errores de Aplicación</option>
-            <option value="Requerimientos Nuevos">Requerimientos Nuevos</option>
-        </select>
-    </div>
-
-    <div id="ticketsContainer" class="space-y-4">
-        <!-- Tickets cargados dinámicamente -->
-    </div>
-</main>
-
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
-    import { getFirestore, collection, query, getDocs, where, updateDoc, doc } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyDiZ7or4sM1_gZKWPOglyRerSYXy7ufS0k",
-        authDomain: "tickets-pro-d8f2a.firebaseapp.com",
-        projectId: "tickets-pro-d8f2a",
-        storageBucket: "tickets-pro-d8f2a.appspot.com",
-        messagingSenderId: "834950529329",
-        appId: "1:834950529329:web:f9ce16e71830ac73a07010"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    let userRol = 'administrador';
-    let usuarioActual = null;
-
-    onAuthStateChanged(auth, async (user) => {
-        if (!user) {
-            window.location.href = 'index.html';
-            return;
-        }
-
-        usuarioActual = user;
-
-        const userDoc = await getDoc(doc(db, "usuarios", user.uid));
-        userRol = userDoc.exists() ? userDoc.data().rol : 'usuario';
-        if (userRol !== 'administrador') {
-            window.location.href = 'index.html';
-            return;
-        }
-
-        cargarMenu(userRol);
-        cargarTickets();
-    });
-
-    function cargarMenu(rol) {
-        const menu = document.getElementById('menu');
-        menu.innerHTML = '';
-
-        const items = (rol === 'administrador') ? [
-            { texto: 'Dashboard', href: 'dashboard.html' },
-            { texto: 'Todos los Tickets', href: 'admin-tickets.html' },
-            { texto: 'Crear Ticket', href: 'crear-ticket.html' },
-            { texto: 'Perfil', href: 'perfil.html' },
-            { texto: 'Cerrar Sesión', action: cerrarSesion }
-        ] : [
-            { texto: 'Dashboard', href: 'dashboard.html' },
-            { texto: 'Mis Tickets', href: 'mis-tickets.html' },
-            { texto: 'Crear Ticket', href: 'crear-ticket.html' },
-            { texto: 'Perfil', href: 'perfil.html' },
-            { texto: 'Cerrar Sesión', action: cerrarSesion }
-        ];
-
-        items.forEach(({ texto, href, action }) => {
-            const li = document.createElement('li');
-            li.innerHTML = href ? `<a href="${href}" class="hover:underline">${texto}</a>` : `<span class="hover:underline cursor-pointer">${texto}</span>`;
-            if (action) li.onclick = action;
-            menu.appendChild(li);
-        });
-    }
-
-    async function cargarTickets() {
-        const estadoFiltro = document.getElementById('estadoFiltro').value;
-        const categoriaFiltro = document.getElementById('categoriaFiltro').value;
-
-        const q = query(
-            collection(db, 'tickets'),
-            (estadoFiltro ? where('estado', '==', estadoFiltro) : null),
-            (categoriaFiltro ? where('categoria', '==', categoriaFiltro) : null)
-        );
-
-        const querySnapshot = await getDocs(q);
-        const ticketsContainer = document.getElementById('ticketsContainer');
-
-        if (querySnapshot.empty) {
-            ticketsContainer.innerHTML = '<p class="text-gray-500">No se encontraron tickets.</p>';
-            return;
-        }
-
-        ticketsContainer.innerHTML = '';
-        querySnapshot.forEach(doc => {
-            const ticket = doc.data();
-            ticketsContainer.appendChild(crearTarjetaTicket(ticket, doc.id));
-        });
-    }
-
-    function crearTarjetaTicket(ticket, ticketId) {
-        const div = document.createElement('div');
-        div.className = 'bg-white p-4 rounded-lg shadow-md';
-
-        div.innerHTML = `
-            <div class="flex justify-between items-center">
-                <h3 class="text-lg font-bold">${ticket.titulo}</h3>
-                <span class="text-sm px-2 py-1 rounded ${
-                    ticket.estado === 'Pendiente' ? 'bg-yellow-100 text-yellow-800' :
-                    ticket.estado === 'En proceso' ? 'bg-blue-100 text-blue-800' :
-                    ticket.estado === 'Resuelto' ? 'bg-green-100 text-green-800' :
-                    'bg-gray-100 text-gray-800'
-                }">${ticket.estado}</span>
-            </div>
-            <p class="text-gray-600 text-sm">Categoría: ${ticket.categoria}</p>
-            <p class="text-gray-600 text-sm">Prioridad: ${ticket.prioridad}</p>
-            <p class="text-gray-600 text-sm">Fecha: ${formatearFecha(ticket.fechaRegistro?.seconds)}</p>
-            <p class="text-gray-600 mt-2">${ticket.descripcion}</p>
-
-            <div class="mt-4 flex justify-between">
-                <div class="flex items-center">
-                    <label for="agente-${ticketId}" class="mr-2 text-sm">Agente:</label>
-                    <select id="agente-${ticketId}" class="p-2 border rounded">
-                        <option value="Sin asignar" ${ticket.agenteAsignado === 'Sin asignar' ? 'selected' : ''}>Sin asignar</option>
-                        <option value="Agente 1" ${ticket.agenteAsignado === 'Agente 1' ? 'selected' : ''}>Agente 1</option>
-                        <option value="Agente 2" ${ticket.agenteAsignado === 'Agente 2' ? 'selected' : ''}>Agente 2</option>
-                    </select>
-                </div>
-                <div class="flex items-center">
-                    <label for="estado-${ticketId}" class="mr-2 text-sm">Estado:</label>
-                    <select id="estado-${ticketId}" class="p-2 border rounded">
-                        <option value="Pendiente" ${ticket.estado === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
-                        <option value="En proceso" ${ticket.estado === 'En proceso' ? 'selected' : ''}>En proceso</option>
-                        <option value="Resuelto" ${ticket.estado === 'Resuelto' ? 'selected' : ''}>Resuelto</option>
-                        <option value="Cerrado" ${ticket.estado === 'Cerrado' ? 'selected' : ''}>Cerrado</option>
-                    </select>
-                </div>
-                <button onclick="guardarCambios('${ticketId}')" class="mt-2 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700">Guardar</button>
-            </div>
-        `;
-
-        return div;
-    }
-
-    function formatearFecha(timestampSeconds) {
-        if (!timestampSeconds) return 'Fecha no disponible';
-        const fecha = new Date(timestampSeconds * 1000);
-        return fecha.toLocaleDateString() + ' ' + fecha.toLocaleTimeString();
-    }
-
-    async function guardarCambios(ticketId) {
-        const agente = document.getElementById(`agente-${ticketId}`).value;
-        const estado = document.getElementById(`estado-${ticketId}`).value;
-
-        const ticketRef = doc(db, "tickets", ticketId);
-        await updateDoc(ticketRef, {
-            agenteAsignado: agente,
-            estado: estado
-        });
-
-        cargarTickets(); // Recargar los tickets con los cambios
-    }
-
-    async function cerrarSesion() {
-        await signOut(auth);
-        window.location.href = 'index.html';
-    }
-
-    // Filtros
-    document.getElementById('estadoFiltro').addEventListener('change', cargarTickets);
-    document.getElementById('categoriaFiltro').addEventListener('change', cargarTickets);
-</script>
 
 </body>
 </html>

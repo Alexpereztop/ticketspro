@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Sistema de Tickets</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/5968/5968764.png">
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<header class="bg-indigo-600 text-white p-4">
+    <div class="container mx-auto flex justify-between items-center">
+        <h1 class="text-xl font-bold">Sistema de Tickets</h1>
+        <nav>
+            <ul id="menu" class="flex space-x-4">
+                <!-- El menú se llena dinámicamente según el rol -->
+            </ul>
+        </nav>
+    </div>
+</header>
+
+<main class="p-6">
+    <h2 class="text-2xl font-bold mb-4">Bienvenido <span id="userName" class="text-indigo-600"></span></h2>
+    <p class="text-gray-700">Desde aquí puedes gestionar tus tickets o revisar el estado de los existentes.</p>
+</main>
+
+<!-- Firebase Config -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+    import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDiZ7or4sM1_gZKWPOglyRerSYXy7ufS0k",
+        authDomain: "tickets-pro-d8f2a.firebaseapp.com",
+        projectId: "tickets-pro-d8f2a",
+        storageBucket: "tickets-pro-d8f2a.firebasestorage.app",
+        messagingSenderId: "834950529329",
+        appId: "1:834950529329:web:f9ce16e71830ac73a07010"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let userRol = 'usuario'; // Por defecto
+
+    onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+            window.location.href = 'index.html';
+            return;
+        }
+
+        const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+        if (userDoc.exists()) {
+            const userData = userDoc.data();
+            userRol = userData.rol || 'usuario';
+
+            document.getElementById('userName').innerText = userData.email || user.email;
+            cargarMenu(userRol);
+        } else {
+            await signOut(auth);
+            window.location.href = 'index.html';
+        }
+    });
+
+    function cargarMenu(rol) {
+        const menu = document.getElementById('menu');
+        menu.innerHTML = ''; // Limpia el menú
+
+        const itemsUsuario = [
+            { texto: 'Dashboard', href: 'dashboard.html' },
+            { texto: 'Crear Ticket', href: 'crear-ticket.html' },
+            { texto: 'Mis Tickets', href: 'mis-tickets.html' },
+            { texto: 'Perfil', href: 'perfil.html' },
+            { texto: 'Cerrar Sesión', onclick: cerrarSesion }
+        ];
+
+        const itemsAdmin = [
+            { texto: 'Dashboard', href: 'dashboard.html' },
+            { texto: 'Todos los Tickets', href: 'admin-tickets.html' },
+            { texto: 'Crear Ticket', href: 'crear-ticket.html' },
+            { texto: 'Perfil', href: 'perfil.html' },
+            { texto: 'Cerrar Sesión', onclick: cerrarSesion }
+        ];
+
+        const items = (rol === 'administrador') ? itemsAdmin : itemsUsuario;
+
+        items.forEach(item => {
+            const li = document.createElement('li');
+            li.classList.add('cursor-pointer');
+
+            if (item.href) {
+                li.innerHTML = `<a href="${item.href}" class="hover:underline">${item.texto}</a>`;
+            } else if (item.onclick) {
+                li.innerHTML = `<span class="hover:underline">${item.texto}</span>`;
+                li.onclick = item.onclick;
+            }
+
+            menu.appendChild(li);
+        });
+    }
+
+    async function cerrarSesion() {
+        await signOut(auth);
+        window.location.href = 'index.html';
+    }
+</script>
+
+</body>
+</html>
